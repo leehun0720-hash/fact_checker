@@ -19,8 +19,8 @@ export default defineRailway(() => {
       CORS_ORIGINS: "https://zippy-unicorn-d4c02b.netlify.app,http://localhost:3000",
       // 첫 조직·관리자 계정을 화면에서 만들기 위해 켜 둔다. 만든 뒤 "0"으로 내리고 다시 apply.
       ALLOW_SELF_SIGNUP: "1",
-      // "1"이면 Claude API를 부르지 않고 샘플 결과를 반환한다. 키·스킬 ID를 넣은 뒤 "0"으로.
-      MOCK_VERIFIER: "1",
+      // "1"이면 Claude API를 부르지 않고 고정 샘플을 반환(데모). 키·스킬 ID가 있으면 "0".
+      MOCK_VERIFIER: "0",
       CLAUDE_MODEL: "claude-opus-5",
       DFC_SKILL_VERSION: "latest",
       MAX_CONCURRENT_JOBS: "2",

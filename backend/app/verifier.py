@@ -125,8 +125,7 @@ def _describe_block(block) -> tuple[str, str] | None:
     if name == "text_editor_code_execution":
         return "editor", f"{inp.get('command', '')} {inp.get('path', '')}".strip()
     if name == "code_execution":  # code_execution_20260521: 파이썬 코드를 직접 실행하는 블록
-        code = str(inp.get("code", "")).strip().replace("
-", " ⏎ ")
+        code = str(inp.get("code", "")).strip().replace(chr(10), " ⏎ ")
         return "python", code[:300]
     return name, json.dumps(inp, ensure_ascii=False)[:200]
 

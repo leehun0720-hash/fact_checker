@@ -71,7 +71,8 @@ python ../skill/doc-fact-checker/scripts/extract_text.py 문서.hwpx --out /tmp/
 
 - **프론트 → Netlify**: 저장소를 연결하면 루트의 `netlify.toml`(base=`frontend`, Next.js 런타임)이 적용됩니다. 사이트 설정 → Environment variables에 `NEXT_PUBLIC_API_BASE`(백엔드 주소)를 넣고 다시 배포하세요. 이 값은 빌드 시점에 번들에 박히므로 바꾸면 재배포가 필요합니다.
 - **프론트 → Vercel**: 저장소 연결 후 Root Directory를 `frontend`로, 환경변수 `NEXT_PUBLIC_API_BASE`에 백엔드 주소.
-- **백엔드 → 컨테이너 호스팅** (Cloud Run, Railway, Fly 등): `backend/Dockerfile` 사용. `/data` 볼륨을 붙여 작업 기록을 보존. 검증 한 건이 수 분 걸리므로 요청 타임아웃과 인스턴스 최소 수(0으로 내려가지 않게)를 조정.
+- **백엔드 → Railway**: `.railway/railway.ts`가 서비스(싱가포르 리전, `backend/Dockerfile`), `/data` 볼륨, 환경변수를 정의합니다. `npm install`(루트) → `railway login` → `railway link` → `railway config plan` → `railway config apply`. 비밀값은 `railway variable set ANTHROPIC_API_KEY=... DFC_SKILL_ID=...`로 넣습니다(파일에는 `preserve()`로만 선언). 첫 조직은 `ALLOW_SELF_SIGNUP=1` 상태에서 화면의 '새 조직 만들기'로 생성한 뒤 `0`으로 내리고 다시 apply. 앱 슬립(auto-sleep)은 켜지 마세요 — 진행 중인 검증이 프로세스와 함께 죽습니다.
+- **백엔드 → 그 외 컨테이너 호스팅** (Cloud Run, Fly 등): `backend/Dockerfile` 사용(`PORT` 환경변수를 따름). `/data` 볼륨을 붙여 작업 기록을 보존. 검증 한 건이 수 분 걸리므로 요청 타임아웃과 인스턴스 최소 수(0으로 내려가지 않게)를 조정.
 - 백엔드 `.env`의 `CORS_ORIGINS`에 Netlify/Vercel 도메인 추가. 반드시 HTTPS로 서비스합니다(세션 토큰이 헤더로 오갑니다).
 - 고객 셀프 온보딩을 열려면 `ALLOW_SELF_SIGNUP=1` (로그인 화면에 '새 조직 만들기'가 생김). 내부용은 0으로 두고 초대 코드만 사용.
 - 운영에서는 `DFC_SKILL_VERSION`을 `latest` 대신 `skver_...`로 고정. 스킬을 고친 뒤 `python scripts/upload_skill.py --skill-id skill_...`로 새 버전을 만들고, 검토 후 버전을 올립니다.

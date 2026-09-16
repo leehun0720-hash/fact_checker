@@ -1,0 +1,8 @@
+{
+  "name": "fact-checker-infra",
+  "private": true,
+  "description": "저장소 루트 — Railway IaC(.railway/railway.ts)가 쓰는 SDK만 둔다. 앱 의존성은 frontend/, backend/에 있다.",
+  "devDependencies": {
+    "railway": "^3.11.0"
+  }
+}

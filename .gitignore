@@ -31,3 +31,6 @@ Thumbs.db
 # Netlify
 frontend/.netlify/
 .netlify/
+
+# 루트 (Railway IaC SDK)
+/node_modules/

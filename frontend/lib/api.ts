@@ -106,3 +106,10 @@ export function formatTime(iso: string) {
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
+
+/** 추정 비용 표기. 소액은 센트 단위까지. */
+export function formatCost(usd?: number | null) {
+  if (usd === undefined || usd === null) return "";
+  if (usd < 0.01) return "$0.01 미만";
+  return `$${usd.toFixed(2)}`;
+}

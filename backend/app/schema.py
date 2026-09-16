@@ -117,11 +117,14 @@ class ToolEvent(Lenient):
 
 
 class Usage(Lenient):
-    input_tokens: int = 0
+    input_tokens: int = 0                 # 캐시되지 않은 입력(정가)
+    cache_read_input_tokens: int = 0      # 캐시에서 읽은 입력(정가의 10%)
+    cache_creation_input_tokens: int = 0  # 캐시에 쓴 입력(정가의 125%)
     output_tokens: int = 0
     web_search_requests: int = 0
     web_fetch_requests: int = 0
     rounds: int = 0
+    cost_usd: float = 0.0                 # 위 값으로 계산한 추정 비용 (pricing.py)
 
 
 class Job(Lenient):

@@ -5,7 +5,7 @@ import StatusBadge from "@/components/StatusBadge";
 import GradeStamp from "@/components/GradeStamp";
 import ProgressLog from "@/components/ProgressLog";
 import FindingItem from "@/components/FindingItem";
-import { download, formatBytes, formatTime, getJob } from "@/lib/api";
+import { download, formatBytes, formatCost, formatTime, getJob } from "@/lib/api";
 import { GRADE_TITLE, VERDICT_LABEL, type Job, type Verdict, type VerificationResult } from "@/lib/types";
 
 const ACTIVE = new Set(["queued", "uploading", "running", "postprocessing"]);
@@ -58,6 +58,7 @@ function JobView() {
           <span>시작 {formatTime(job.created_at)}</span>
           {job.user_email && <span>요청 {job.user_email}</span>}
           {job.model && <span>모델 {job.model}</span>}
+          {job.usage?.cost_usd ? <span title="토큰·웹 검색 사용량으로 계산한 추정치">비용 약 {formatCost(job.usage.cost_usd)}</span> : null}
         </div>
         {job.options.notes && <p className="muted small">메모: {job.options.notes}</p>}
       </header>

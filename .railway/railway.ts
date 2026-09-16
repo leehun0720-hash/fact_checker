@@ -24,6 +24,12 @@ export default defineRailway(() => {
       // "1"이면 Claude API를 부르지 않고 고정 샘플을 반환(데모). 키·스킬 ID가 있으면 "0".
       MOCK_VERIFIER: "0",
       CLAUDE_MODEL: "claude-opus-5",
+      // 비용 조절 — README "비용·시간 감각" 참고
+      PROMPT_CACHE: "1",
+      EFFORT: "medium",
+      WEB_SEARCH_MAX_USES: "8",
+      WEB_FETCH_MAX_USES: "5",
+      WEB_FETCH_MAX_CONTENT_TOKENS: "10000",
       DFC_SKILL_VERSION: "latest",
       MAX_CONCURRENT_JOBS: "2",
       // 비밀값은 파일에 넣지 않는다. `railway variable set KEY=값`으로 넣고 여기서는 유지만 선언.

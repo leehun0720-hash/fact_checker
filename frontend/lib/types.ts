@@ -40,7 +40,8 @@ export interface Job {
   filename: string; size_bytes: number; extra_files: string[];
   options: { as_of?: string | null; scope: string; notes?: string | null; want_corrected: boolean };
   progress: ToolEvent[]; counters: Record<string, number>;
-  usage: { input_tokens: number; output_tokens: number; web_search_requests: number; web_fetch_requests: number; rounds: number };
+  usage: { input_tokens: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number; output_tokens: number;
+           web_search_requests: number; web_fetch_requests: number; rounds: number; cost_usd?: number };
   error?: string | null; result?: VerificationResult | null;
   has_report: boolean; has_corrected: boolean; model?: string | null;
 }

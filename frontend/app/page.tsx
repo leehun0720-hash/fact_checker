@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AppFrame";
 import StatusBadge from "@/components/StatusBadge";
-import { ApiError, createJob, formatBytes, formatTime, listJobs } from "@/lib/api";
+import { ApiError, createJob, formatBytes, formatCost, formatTime, listJobs } from "@/lib/api";
 import type { Job } from "@/lib/types";
 
 const ACCEPT = ".pdf,.docx,.hwpx,.md,.txt";
@@ -150,7 +150,7 @@ function RecentJobs() {
             <Link key={j.id} href={`/jobs/${j.id}`} className="list-row">
               <div>
                 <div className="list-name">{j.filename}</div>
-                <div className="list-sub">{j.options.scope}{j.options.as_of ? ` / 기준 ${j.options.as_of}` : ""} / {formatBytes(j.size_bytes)}{j.user_email ? ` / ${j.user_email}` : ""}</div>
+                <div className="list-sub">{j.options.scope}{j.options.as_of ? ` / 기준 ${j.options.as_of}` : ""} / {formatBytes(j.size_bytes)}{j.user_email ? ` / ${j.user_email}` : ""}{j.usage?.cost_usd ? ` / 약 ${formatCost(j.usage.cost_usd)}` : ""}</div>
               </div>
               <span className="list-time list-sub">{formatTime(j.created_at)}</span>
               <StatusBadge status={j.status} />

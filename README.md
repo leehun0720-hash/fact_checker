@@ -89,9 +89,11 @@ python ../skill/doc-fact-checker/scripts/extract_text.py 문서.hwpx --out /tmp/
 
 ## 비용·시간 감각
 
-- 문서 한 건: 수 분(pause_turn으로 여러 라운드 이어감), 토큰은 문서 길이 + 검색 결과에 비례.
-- 서버 도구 웹 검색·fetch가 요청에 포함되면 코드 실행 요금은 별도로 붙지 않습니다(토큰 비용만). 웹 검색 자체는 회당 과금.
-- 정확도가 중요하면 `CLAUDE_MODEL=claude-opus-5`, 비용을 줄이려면 `claude-sonnet-5`.
+- 문서 한 건: 수 분(pause_turn으로 여러 라운드 이어감). 비용은 화면(작업 상단·목록)에 추정치로 표시됩니다 (`usage.cost_usd`, 요금표는 `backend/app/pricing.py`).
+- **비용 구조**: 검증 루프는 라운드마다(그리고 서버 도구가 도는 반복마다) 대화 전체를 다시 입력으로 보냅니다. 그래서 (1) 프롬프트 캐시(`PROMPT_CACHE=1`, 캐시 읽기는 정가의 10%)가 가장 큰 절감이고, (2) 검색·fetch 결과가 문맥에 쌓이는 양(`WEB_SEARCH_MAX_USES`, `WEB_FETCH_MAX_USES`, `WEB_FETCH_MAX_CONTENT_TOKENS`)이 그다음입니다. 웹 검색은 회당 $0.01, fetch·코드 실행은 토큰 비용만.
+- **추론 깊이** `EFFORT`: 조사형 작업은 `medium`이 `high`와 정확도 동급에 비용 70~85% (기본값). 정확도가 아쉬우면 `high`.
+- **모델**: `claude-opus-5`($5/$25 per MTok, 기본) ↔ `claude-sonnet-5`($2/$10). 토큰당 2.5배 차이. 테스트·내부용은 sonnet, 고객 납품 검증은 opus 권장.
+- 요금표 원문: https://platform.claude.com/docs/en/about-claude/pricing
 
 ## 인증·조직 모델
 

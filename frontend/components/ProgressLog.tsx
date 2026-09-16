@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Job } from "@/lib/types";
 import { STATUS_LABEL } from "@/lib/types";
 import { estimateProgress, fmtDuration, fmtRemaining } from "@/lib/progress";
+import { formatCost } from "@/lib/api";
 
 const TOOL_LABEL: Record<string, string> = {
   web_search: "웹 검색", web_fetch: "원문 확인", bash: "실행", python: "Python", code_execution: "Python", editor: "파일", law_api: "법령 API", download_error: "다운로드 실패",
@@ -62,6 +63,7 @@ export default function ProgressLog({ job }: { job: Job }) {
         <span>원문 확인 {c.web_fetch ?? 0}</span>
         <span>파일 작업 {c.editor ?? 0}</span>
         {c.law_api ? <span>법령 API {c.law_api}</span> : null}
+        {job.usage?.cost_usd ? <span>누적 비용 약 {formatCost(job.usage.cost_usd)}</span> : null}
       </div>
       {events.length > 0 && (
         <ul className="log">

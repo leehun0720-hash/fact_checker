@@ -22,6 +22,7 @@ from . import store
 from .config import settings
 from .postprocess import extract_json_block
 from .prompts import SYSTEM_PROMPT, build_user_prompt
+from .pricing import estimate_cost_usd
 from .schema import Job, ToolEvent, Usage
 
 OUTPUT_NAMES = ("result.json", "report.md", "corrected.md", "log.md")
@@ -61,7 +62,7 @@ def _tools() -> list[dict]:
         {"type": settings.code_execution_tool, "name": "code_execution"},
         {"type": settings.web_search_tool, "name": "web_search", "max_uses": settings.web_search_max_uses},
         {"type": settings.web_fetch_tool, "name": "web_fetch", "max_uses": settings.web_fetch_max_uses,
-         "max_content_tokens": 30000},
+         "max_content_tokens": settings.web_fetch_max_content_tokens},
     ]
     if settings.law_api_oc:
         tools += lawapi.TOOL_DEFINITIONS  # 클라이언트 도구 — 백엔드가 실행해 결과를 돌려준다
@@ -170,6 +171,7 @@ def run_verification(job: Job, on_progress: Callable[[Job], None]) -> RunOutcome
 
     outcome = RunOutcome(raw_result={})
     usage = outcome.usage
+    job.usage = usage  # 같은 객체를 공유해 진행 중에도 화면에 토큰·비용이 보이게 한다
     counters = job.counters
     all_file_ids: list[str] = []
     job.status = "running"
@@ -180,6 +182,11 @@ def run_verification(job: Job, on_progress: Callable[[Job], None]) -> RunOutcome
     for round_no in range(1, settings.pause_turn_max_rounds + 1):
         usage.rounds = round_no
         seen_blocks = 0
+        extra: dict = {"output_config": {"effort": settings.effort}}
+        if settings.prompt_cache:
+            # 라운드마다(그리고 서버 도구가 도는 반복마다) 앞부분이 그대로 다시 들어가므로
+            # 자동 캐시 한 줄이 입력 비용의 대부분을 정가의 10%로 바꾼다.
+            extra["cache_control"] = {"type": "ephemeral"}
         with client.messages.stream(
             model=settings.claude_model,
             max_tokens=settings.max_tokens,
@@ -187,6 +194,7 @@ def run_verification(job: Job, on_progress: Callable[[Job], None]) -> RunOutcome
             messages=messages,
             tools=_tools(),
             container=container,
+            **extra,
         ) as stream:
             for event in stream:
                 if event.type == "content_block_stop":
@@ -213,9 +221,13 @@ def run_verification(job: Job, on_progress: Callable[[Job], None]) -> RunOutcome
 
         usage.input_tokens += msg.usage.input_tokens
         usage.output_tokens += msg.usage.output_tokens
+        usage.cache_read_input_tokens += msg.usage.cache_read_input_tokens or 0
+        usage.cache_creation_input_tokens += msg.usage.cache_creation_input_tokens or 0
         if msg.usage.server_tool_use:
             usage.web_search_requests += msg.usage.server_tool_use.web_search_requests
             usage.web_fetch_requests += msg.usage.server_tool_use.web_fetch_requests
+        usage.cost_usd = estimate_cost_usd(settings.claude_model, usage)
+        on_progress(job)
         all_file_ids += _file_ids(msg)
         if msg.container is not None:
             container = {"id": msg.container.id, "skills": _skills()}

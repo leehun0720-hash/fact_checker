@@ -124,19 +124,26 @@ def _describe_block(block) -> tuple[str, str] | None:
         return "bash", cmd[:300]
     if name == "text_editor_code_execution":
         return "editor", f"{inp.get('command', '')} {inp.get('path', '')}".strip()
+    if name == "code_execution":  # code_execution_20260521: 파이썬 코드를 직접 실행하는 블록
+        code = str(inp.get("code", "")).strip().replace("
+", " ⏎ ")
+        return "python", code[:300]
     return name, json.dumps(inp, ensure_ascii=False)[:200]
 
 
 def _file_ids(message) -> list[str]:
-    ids = []
+    """도구 결과 블록에 담긴 산출물 file_id를 모두 모은다.
+    bash_code_execution / code_execution(python) / text_editor 결과 구조가 조금씩 달라 형태에 의존하지 않고 훑는다."""
+    ids: list[str] = []
     for item in message.content:
-        if getattr(item, "type", None) == "bash_code_execution_tool_result":
-            content = item.content
-            if getattr(content, "type", None) == "bash_code_execution_result":
-                for out in content.content or []:
-                    fid = getattr(out, "file_id", None)
-                    if fid:
-                        ids.append(fid)
+        if not str(getattr(item, "type", "")).endswith("_tool_result"):
+            continue
+        content = getattr(item, "content", None)
+        outputs = getattr(content, "content", None) or []
+        for out in outputs if isinstance(outputs, list) else []:
+            fid = getattr(out, "file_id", None)
+            if fid:
+                ids.append(fid)
     return ids
 
 
@@ -191,9 +198,12 @@ def run_verification(job: Job, on_progress: Callable[[Job], None]) -> RunOutcome
                         seen_blocks += 1
                         if desc:
                             tool, detail = desc
-                            counters[tool] = counters.get(tool, 0) + 1
-                            if tool == "bash" and "python" in detail:
+                            if tool == "python":
                                 counters["python"] = counters.get("python", 0) + 1
+                            else:
+                                counters[tool] = counters.get(tool, 0) + 1
+                                if tool == "bash" and "python" in detail:
+                                    counters["python"] = counters.get("python", 0) + 1
                             ev = ToolEvent(at=Job.now(), tool=tool, detail=detail)
                             outcome.events.append(ev)
                             job.progress.append(ev)

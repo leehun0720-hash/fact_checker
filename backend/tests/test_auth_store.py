@@ -65,3 +65,25 @@ def test_password_hash_roundtrip():
     h = auth.hash_password("correct horse")
     assert h.startswith("scrypt$") and auth.verify_password("correct horse", h)
     assert not auth.verify_password("wrong", h) and not auth.verify_password("x", "garbage")
+
+
+def test_interrupted_and_stale_jobs_are_failed():
+    from datetime import datetime, timedelta
+    from app.main import _reap_if_stale, STALE_AFTER
+
+    org = auth.create_org("C사", 3)
+    u = auth.create_user(org["id"], "c@c.com", "password3", None)
+    running = _job(org["id"], u.id, "run.pdf"); running.status = "running"; store.save(running)
+    done = _job(org["id"], u.id, "done.pdf"); done.status = "done"; store.save(done)
+
+    # 재시작 정리: 활성 작업만 실패로, 완료 작업은 그대로
+    assert store.fail_active_jobs("재시작") >= 1
+    assert store.load(running.id, org["id"]).status == "failed"
+    assert store.load(done.id, org["id"]).status == "done"
+
+    # 오래 멈춘 작업: updated_at이 임계보다 오래되면 조회 시 실패 처리
+    stale = _job(org["id"], u.id, "stale.pdf"); stale.status = "running"; store.save(stale)
+    stale.updated_at = (datetime.now().astimezone() - STALE_AFTER - timedelta(minutes=1)).isoformat(timespec="seconds")
+    assert _reap_if_stale(stale).status == "failed" and "진행 기록" in (stale.error or "")
+    fresh = _job(org["id"], u.id, "fresh.pdf"); fresh.status = "running"; store.save(fresh)
+    assert _reap_if_stale(fresh).status == "running"

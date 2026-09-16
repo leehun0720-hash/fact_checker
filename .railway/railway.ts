@@ -11,6 +11,8 @@ export default defineRailway(() => {
   const backend = service("backend", {
     // backend/Dockerfile을 자동 감지해서 빌드한다.
     source: github("leehun0720-hash/fact_checker", { branch: "main", rootDirectory: "backend" }),
+    // backend/ 밖(프론트·문서)만 바뀐 커밋으로는 재배포하지 않는다. 재배포는 진행 중인 검증을 죽인다.
+    build: { watchPatterns: ["/backend/**"] },
     healthcheck: "/api/health",
     healthcheckTimeout: 300, // Chromium 포함 이미지라 첫 기동이 느릴 수 있음
     env: {

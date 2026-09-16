@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import re
 import threading
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -29,6 +30,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 init_db()
+
+# 검증은 이 프로세스 안에서 돈다(BackgroundTasks). 배포·재시작으로 프로세스가 바뀌면 진행 중이던
+# 작업은 이어갈 수 없으므로, 영원히 '검증 중'으로 남지 않게 시작 시점에 실패로 정리한다.
+_n_reaped = store.fail_active_jobs("서버가 재시작되어 검증이 중단되었습니다. 같은 문서를 다시 올려 주세요.")
+if _n_reaped:
+    log.warning("startup: marked %d interrupted job(s) as failed", _n_reaped)
+
+# 이만큼 진행 기록이 없으면 죽은 작업으로 본다 (Claude API 스트림 타임아웃 30분 + 여유)
+STALE_AFTER = timedelta(minutes=45)
 
 _job_slots = threading.Semaphore(settings.max_concurrent_jobs)
 
@@ -247,14 +257,31 @@ async def create_job(
 
 @app.get("/api/jobs")
 def list_jobs(limit: int = 50, user: AuthUser = Depends(current_user)):
-    return [j.model_dump() for j in store.list_jobs(user.org_id, limit=limit)]
+    return [_reap_if_stale(j).model_dump() for j in store.list_jobs(user.org_id, limit=limit)]
+
+
+def _reap_if_stale(job: Job) -> Job:
+    """활성 상태인데 오랫동안 진행 기록이 없으면 실패로 확정한다. 조회 시점에 게으르게 처리."""
+    if job.status not in store.ACTIVE_STATUSES:
+        return job
+    try:
+        last = datetime.fromisoformat(job.updated_at)
+    except ValueError:
+        return job
+    if datetime.now(last.tzinfo) - last > STALE_AFTER:
+        job.status = "failed"
+        job.error = (f"{int(STALE_AFTER.total_seconds() // 60)}분 이상 진행 기록이 없어 중단 처리했습니다. "
+                     "서버가 재시작됐거나 모델 응답이 끊긴 경우입니다. 같은 문서를 다시 올려 주세요.")
+        store.save(job)
+        log.warning("job %s reaped as stale", job.id)
+    return job
 
 
 def _load_or_404(job_id: str, user: AuthUser) -> Job:
     job = store.load(job_id, user.org_id)
     if job is None:
         raise HTTPException(404, "작업을 찾을 수 없습니다.")
-    return job
+    return _reap_if_stale(job)
 
 
 @app.get("/api/jobs/{job_id}")

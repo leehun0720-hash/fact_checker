@@ -5,7 +5,7 @@ import { STATUS_LABEL } from "@/lib/types";
 import { estimateProgress, fmtDuration, fmtRemaining } from "@/lib/progress";
 
 const TOOL_LABEL: Record<string, string> = {
-  web_search: "웹 검색", web_fetch: "원문 확인", bash: "실행", editor: "파일", law_api: "법령 API", download_error: "다운로드 실패",
+  web_search: "웹 검색", web_fetch: "원문 확인", bash: "실행", python: "Python", code_execution: "Python", editor: "파일", law_api: "법령 API", download_error: "다운로드 실패",
 };
 
 /** 1초마다 갱신되는 현재 시각 — 경과 시간 표시용 */

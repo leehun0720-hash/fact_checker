@@ -67,5 +67,25 @@ def list_jobs(org_id: str, limit: int = 50) -> list[Job]:
     return items
 
 
+ACTIVE_STATUSES = ("queued", "uploading", "running", "postprocessing")
+
+
+def fail_active_jobs(reason: str) -> int:
+    """진행 중이던 작업을 모두 실패로 바꾼다. 서버 재시작 직후에 부른다 —
+    검증은 프로세스 안에서 돌기 때문에 재시작되면 이어갈 수 없다."""
+    n = 0
+    with connect() as con:
+        rows = con.execute(
+            f"SELECT data FROM jobs WHERE status IN ({','.join('?' * len(ACTIVE_STATUSES))})", ACTIVE_STATUSES
+        ).fetchall()
+    for r in rows:
+        job = Job.model_validate_json(r["data"])
+        job.status = "failed"
+        job.error = reason
+        save(job)
+        n += 1
+    return n
+
+
 def write_json(path: Path, data) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -197,7 +197,7 @@ function Report({ job, r }: { job: Job; r: VerificationResult }) {
 
 function RunLog({ job }: { job: Job }) {
   const u = job.usage;
-  const LABEL: Record<string, string> = { web_search: "웹 검색", web_fetch: "원문 확인", bash: "실행", editor: "파일", law_api: "법령 API", law_api_result: "법령 결과" };
+  const LABEL: Record<string, string> = { web_search: "웹 검색", web_fetch: "원문 확인", bash: "실행", python: "Python", code_execution: "Python", editor: "파일", law_api: "법령 API", law_api_result: "법령 결과" };
   return (
     <section className="stack">
       <div className="meta-line">

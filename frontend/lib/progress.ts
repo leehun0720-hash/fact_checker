@@ -18,11 +18,12 @@ export interface ProgressEstimate {
 const RUNNING_CAP = 92;
 
 function isExtract(e: ToolEvent) { return e.tool === "bash" && e.detail.includes("extract_text"); }
-function isRecalc(e: ToolEvent) { return e.tool === "bash" && (e.detail.includes("python") || e.detail.includes("korean_number_parser")); }
+function isPython(e: ToolEvent) { return e.tool === "python" || e.tool === "code_execution"; }
+function isRecalc(e: ToolEvent) { return isPython(e) || (e.tool === "bash" && (e.detail.includes("python") || e.detail.includes("korean_number_parser"))); }
 function isExternal(e: ToolEvent) { return e.tool === "web_search" || e.tool === "web_fetch" || e.tool === "law_api" || e.tool === "law_api_result"; }
 function isExport(e: ToolEvent) {
   const d = e.detail;
-  return d.includes("OUTPUT_DIR") || ((e.tool === "editor" || e.tool === "bash") && (d.includes("result.json") || d.includes("report.md")));
+  return d.includes("OUTPUT_DIR") || ((e.tool === "editor" || e.tool === "bash" || isPython(e)) && (d.includes("result.json") || d.includes("report.md")));
 }
 
 function eventPct(job: Job): number {

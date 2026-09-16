@@ -58,6 +58,29 @@ def _user_payload(u: AuthUser) -> dict:
 
 # ---------- 실행 ----------
 
+def _friendly_error(exc: Exception) -> str:
+    """Claude API 오류를 운영자가 바로 조치할 수 있는 문장으로 바꾼다. 모르는 오류는 원문 그대로."""
+    raw = f"{type(exc).__name__}: {exc}"
+    body = getattr(exc, "body", None)
+    err = body.get("error", {}) if isinstance(body, dict) else {}
+    etype = err.get("type", "")
+    msg = str(err.get("message", "") or exc)
+    if "credit balance" in msg:
+        return ("Anthropic API 크레딧이 부족합니다. console.anthropic.com → Plans & Billing에서 충전한 뒤 다시 올려 주세요. "
+                "비용을 줄이려면 CLAUDE_MODEL=claude-sonnet-5, WEB_SEARCH_MAX_USES를 낮추세요.")
+    if etype == "authentication_error":
+        return "Anthropic API 키가 유효하지 않습니다. 서버의 ANTHROPIC_API_KEY를 확인하세요."
+    if etype == "permission_error":
+        return f"이 API 키로는 요청한 기능(모델·스킬·도구)을 쓸 수 없습니다: {msg}"
+    if etype == "rate_limit_error":
+        return "Anthropic API 사용량 한도에 걸렸습니다. 잠시 뒤 다시 올려 주세요."
+    if etype == "overloaded_error":
+        return "Anthropic API가 일시적으로 혼잡합니다. 잠시 뒤 다시 올려 주세요."
+    if etype == "not_found_error" and "skill" in msg.lower():
+        return f"스킬을 찾을 수 없습니다. DFC_SKILL_ID/DFC_SKILL_VERSION을 확인하세요: {msg}"
+    return raw
+
+
 def _execute(job_id: str, org_id: str) -> None:
     job = store.load(job_id, org_id)
     if job is None:
@@ -98,7 +121,7 @@ def _execute(job_id: str, org_id: str) -> None:
         except Exception as exc:  # noqa: BLE001 — 작업 단위로 실패를 기록한다
             log.exception("job %s failed", job_id)
             job.status = "failed"
-            job.error = f"{type(exc).__name__}: {exc}"
+            job.error = _friendly_error(exc)
             store.save(job)
 
 

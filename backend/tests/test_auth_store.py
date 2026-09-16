@@ -87,3 +87,16 @@ def test_interrupted_and_stale_jobs_are_failed():
     assert _reap_if_stale(stale).status == "failed" and "진행 기록" in (stale.error or "")
     fresh = _job(org["id"], u.id, "fresh.pdf"); fresh.status = "running"; store.save(fresh)
     assert _reap_if_stale(fresh).status == "running"
+
+
+def test_friendly_api_errors():
+    from app.main import _friendly_error
+
+    class FakeStatusError(Exception):
+        def __init__(self, body): super().__init__(str(body)); self.body = body
+
+    e = FakeStatusError({"type": "error", "error": {"type": "invalid_request_error",
+                                                   "message": "Your credit balance is too low to access the Anthropic API."}})
+    assert "크레딧" in _friendly_error(e)
+    assert "API 키" in _friendly_error(FakeStatusError({"error": {"type": "authentication_error", "message": "invalid x-api-key"}}))
+    assert _friendly_error(ValueError("boom")) == "ValueError: boom"

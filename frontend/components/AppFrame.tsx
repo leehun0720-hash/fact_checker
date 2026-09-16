@@ -15,6 +15,8 @@ export function useAuth(): AuthCtx {
 export default function AppFrame({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Me | null>(null);
   const [checked, setChecked] = useState(false);
+  const [mock, setMock] = useState(false);
+  useEffect(() => { health().then((h) => setMock(h.mock)).catch(() => {}); }, []);
 
   const refresh = useCallback(async () => {
     if (!getToken()) { setUser(null); setChecked(true); return; }
@@ -42,6 +44,12 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
           </nav>
         )}
       </header>
+      {mock && (
+        <div className="alert warn" role="status" style={{ marginBottom: 24 }}>
+          <strong>데모 모드</strong> — 지금은 실제 검증이 아니라 고정된 샘플 결과가 표시됩니다. 올린 문서는 읽지 않습니다.
+          서버에 <code>ANTHROPIC_API_KEY</code>·<code>DFC_SKILL_ID</code>를 넣고 <code>MOCK_VERIFIER=0</code>으로 바꾸면 실제 검증이 켜집니다.
+        </div>
+      )}
       {!checked ? null : user
         ? <Ctx.Provider value={{ user, refresh, signOut }}>{children}</Ctx.Provider>
         : <AuthScreen onDone={(u) => { setUser(u); }} />}

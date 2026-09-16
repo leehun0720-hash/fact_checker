@@ -8,6 +8,8 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # 백엔드(Railway) 주소. 빌드 시점에 번들에 박히므로 바꾸면 재배포가 필요하다.
+  NEXT_PUBLIC_API_BASE = "https://backend-production-b3ca.up.railway.app"
 
 # Next.js App Router(동적 라우트 /jobs/[id])를 서버 함수로 돌리는 공식 런타임
 [[plugins]]

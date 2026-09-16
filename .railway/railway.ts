@@ -4,8 +4,9 @@ import { defineRailway, github, preserve, project, service, volume } from "railw
 
 export default defineRailway(() => {
   // SQLite + 업로드 문서 + 검증 결과가 여기에 쌓인다 (Dockerfile의 DATA_DIR=/data).
-  // Trial/Free 플랜 볼륨 상한이 0.5 GB라 512로 시작. Hobby로 올리면 sizeMB를 키우면 된다.
-  const data = volume("backend-data", { region: "asia-southeast1-eqsg3a", sizeMB: 512 });
+  // Trial/Free 플랜 볼륨 상한이 0.5 GB라 500으로 시작. Hobby로 올리면 sizeMB를 키우면 된다.
+  // 리전은 서비스와 같아야 한다(다르면 볼륨 마이그레이션 + 다운타임). 현재 서비스는 US West.
+  const data = volume("backend-volume", { region: "sfo", sizeMB: 500 });
 
   const backend = service("backend", {
     // backend/Dockerfile을 자동 감지해서 빌드한다.

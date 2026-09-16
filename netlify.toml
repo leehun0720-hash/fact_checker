@@ -1,0 +1,14 @@
+# Netlify 배포 설정 — 저장소가 모노레포(backend/ + frontend/)이므로
+# 프론트 폴더를 base로 지정해야 한다. 이 파일이 없으면 Netlify가 저장소 루트를
+# 정적 사이트로 게시해 index.html이 없어 404(Page not found)가 난다.
+[build]
+  base    = "frontend"
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Next.js App Router(동적 라우트 /jobs/[id])를 서버 함수로 돌리는 공식 런타임
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

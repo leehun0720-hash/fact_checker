@@ -27,3 +27,7 @@ frontend/.vercel
 Thumbs.db
 .idea/
 .vscode/
+
+# Netlify
+frontend/.netlify/
+.netlify/

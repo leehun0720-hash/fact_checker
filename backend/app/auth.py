@@ -199,14 +199,33 @@ def create_invite(org_id: str, created_by: str, role: str = "member") -> dict:
 
 
 def accept_invite(code: str, email: str, password: str, name: str | None) -> AuthUser:
+    code = (code or "").strip()
+    # Reject invalid codes before expensive password hashing; recheck under lock below.
     with connect() as con:
-        inv = con.execute("SELECT * FROM invites WHERE code = ?", ((code or "").strip(),)).fetchone()
-    if not inv or inv["used_at"] or inv["expires_at"] < _now():
+        preliminary = con.execute("SELECT used_at, expires_at FROM invites WHERE code = ?", (code,)).fetchone()
+    if not preliminary or preliminary["used_at"] or preliminary["expires_at"] < _now():
         raise HTTPException(400, "초대 코드가 유효하지 않거나 만료되었습니다.")
-    user = create_user(inv["org_id"], email, password, name, role=inv["role"])
+    email = _norm_email(email)
+    try:
+        pw_hash = hash_password(password)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    uid = uuid.uuid4().hex[:12]
     with connect() as con:
-        con.execute("UPDATE invites SET used_by = ?, used_at = ? WHERE code = ?", (user.id, _now(), inv["code"]))
-    return user
+        # Serialize invite consumption across independent connections/processes.
+        con.execute("BEGIN IMMEDIATE")
+        inv = con.execute("SELECT * FROM invites WHERE code = ?", (code,)).fetchone()
+        if not inv or inv["used_at"] or inv["expires_at"] < _now():
+            raise HTTPException(400, "초대 코드가 유효하지 않거나 만료되었습니다.")
+        if not con.execute("SELECT 1 FROM orgs WHERE id = ? AND is_active = 1", (inv["org_id"],)).fetchone():
+            raise HTTPException(400, "초대 코드가 유효하지 않거나 만료되었습니다.")
+        if con.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
+            raise HTTPException(409, "이미 가입된 이메일입니다.")
+        con.execute("INSERT INTO users(id, org_id, email, name, password_hash, role, created_at) VALUES(?,?,?,?,?,?,?)",
+                    (uid, inv["org_id"], email, (name or "").strip() or None, pw_hash, inv["role"], _now()))
+        con.execute("UPDATE invites SET used_by = ?, used_at = ? WHERE code = ?", (uid, _now(), inv["code"]))
+        row = con.execute(USER_SQL.format(where="u.id = ?"), (uid,)).fetchone()
+    return _row_to_user(row)
 
 
 def list_members(org_id: str) -> list[dict]:
@@ -224,7 +243,9 @@ def list_open_invites(org_id: str) -> list[dict]:
 
 def set_member_active(org_id: str, user_id: str, active: bool) -> None:
     with connect() as con:
-        con.execute("UPDATE users SET is_active = ? WHERE id = ? AND org_id = ?", (1 if active else 0, user_id, org_id))
+        changed = con.execute("UPDATE users SET is_active = ? WHERE id = ? AND org_id = ?", (1 if active else 0, user_id, org_id))
+        if changed.rowcount != 1:
+            raise HTTPException(404, "구성원을 찾을 수 없습니다.")
         if not active:
             con.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
 

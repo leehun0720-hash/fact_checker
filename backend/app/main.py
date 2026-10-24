@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+import shutil
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -18,11 +19,13 @@ from .config import settings
 from .db import init_db
 from .postprocess import postprocess
 from .schema import Job, JobOptions, Usage
+from .uploads import UploadBodyLimit, save_upload
 
 log = logging.getLogger("dfc")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 app = FastAPI(title="Doc Fact Checker API", version="0.2.0")
+app.add_middleware(UploadBodyLimit)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -241,39 +244,48 @@ async def create_job(
     if ext not in settings.allowed_extensions:
         raise HTTPException(400, f"지원하지 않는 형식입니다: {ext or '(확장자 없음)'} — 가능: {', '.join(settings.allowed_extensions)}")
 
-    data = await file.read()
-    limit = settings.max_upload_mb * 1024 * 1024
-    if len(data) > limit:
-        raise HTTPException(413, f"파일이 {settings.max_upload_mb}MB를 넘습니다.")
-    if not data:
-        raise HTTPException(400, "빈 파일입니다.")
-
-    job_id = store.new_id()
-    updir = store.uploads_dir(user.org_id, job_id)
-    (updir / name).write_bytes(data)
-
+    if len(extra_files) > settings.max_extra_files:
+        raise HTTPException(413, "첨부 파일 개수 제한을 초과했습니다.")
     extra_names: list[str] = []
+    seen = {name}
     for ef in extra_files:
         if not ef.filename:
             continue
         en = _safe_name(ef.filename)
-        if en == name:
-            en = "extra_" + en
-        edata = await ef.read()
-        if len(edata) > limit:
-            raise HTTPException(413, f"근거자료 {en}이(가) {settings.max_upload_mb}MB를 넘습니다.")
-        (updir / en).write_bytes(edata)
+        if en in (".", "..") or en in seen:
+            raise HTTPException(400, "첨부 파일 이름이 중복되거나 올바르지 않습니다.")
+        seen.add(en)
         extra_names.append(en)
 
-    job = Job(
-        id=job_id, org_id=user.org_id, user_id=user.id, user_email=user.email,
-        created_at=Job.now(), updated_at=Job.now(), status="queued",
-        filename=name, size_bytes=len(data), extra_files=extra_names,
-        options=JobOptions(as_of=(as_of or None), scope=scope or "전체", notes=(notes or None),
-                           want_corrected=want_corrected),
-        usage=Usage(),
-    )
-    store.save(job)
+    job_id = store.new_id()
+    jobdir = store.job_dir(user.org_id, job_id)
+    # Never reuse or remove an existing job directory, even on an ID collision.
+    jobdir.mkdir(parents=True, exist_ok=False)
+    committed = False
+    try:
+        updir = store.uploads_dir(user.org_id, job_id)
+        remaining = settings.max_total_upload_mb * 1024 * 1024
+        size = await save_upload(file, updir / name, remaining)
+        if not size:
+            raise HTTPException(400, "빈 파일입니다.")
+        remaining -= size
+        for ef, en in zip((f for f in extra_files if f.filename), extra_names):
+            remaining -= await save_upload(ef, updir / en, remaining)
+
+        job = Job(
+            id=job_id, org_id=user.org_id, user_id=user.id, user_email=user.email,
+            created_at=Job.now(), updated_at=Job.now(), status="queued",
+            filename=name, size_bytes=size, extra_files=extra_names,
+            options=JobOptions(as_of=(as_of or None), scope=scope or "전체", notes=(notes or None),
+                               want_corrected=want_corrected),
+            usage=Usage(),
+        )
+        store.reserve_job(job, user.monthly_job_limit)
+        committed = True
+    finally:
+        if not committed and jobdir.exists():
+            # This path contains only the new server-generated job's uploads.
+            shutil.rmtree(jobdir)
     background.add_task(_execute, job_id, user.org_id)
     return {"id": job_id, "status": job.status}
 

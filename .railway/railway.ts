@@ -18,9 +18,9 @@ export default defineRailway(() => {
     env: {
       DATA_DIR: "/data",
       // 프론트 도메인. Netlify 도메인이 바뀌면 여기와 netlify.toml을 함께 고친다.
-      CORS_ORIGINS: "https://zippy-unicorn-d4c02b.netlify.app,http://localhost:3000",
-      // 첫 조직·관리자 계정을 화면에서 만들기 위해 켜 둔다. 만든 뒤 "0"으로 내리고 다시 apply.
-      ALLOW_SELF_SIGNUP: "1",
+      CORS_ORIGINS: "https://zippy-unicorn-d4c02b.netlify.app,http://localhost:3000,https://fact.tenai.kr",
+      // 공개 가입은 닫고 기존 로그인과 유효한 초대 가입만 허용한다.
+      ALLOW_SELF_SIGNUP: "0",
       // "1"이면 Claude API를 부르지 않고 고정 샘플을 반환(데모). 키·스킬 ID가 있으면 "0".
       MOCK_VERIFIER: "0",
       CLAUDE_MODEL: "claude-opus-5",

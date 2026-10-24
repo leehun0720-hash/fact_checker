@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     data_dir: Path = Path("./data")
     max_upload_mb: int = 20
+    max_total_upload_mb: int = 40
+    max_extra_files: int = 10
     max_concurrent_jobs: int = 2
     mock_verifier: bool = False
 

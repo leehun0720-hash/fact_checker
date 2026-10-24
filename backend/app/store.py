@@ -7,8 +7,11 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
+from fastapi import HTTPException
 
 from .config import settings
 from .db import connect
@@ -55,6 +58,21 @@ def load(job_id: str, org_id: Optional[str] = None) -> Optional[Job]:
         else:
             row = con.execute("SELECT data FROM jobs WHERE id = ? AND org_id = ?", (job_id, org_id)).fetchone()
     return Job.model_validate_json(row["data"]) if row else None
+
+
+def reserve_job(job: Job, monthly_limit: int) -> None:
+    """Atomically admit a job; admitted failed jobs keep the existing quota policy."""
+    start = datetime.now().astimezone().replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat(timespec="seconds")
+    with connect() as con:
+        con.execute("BEGIN IMMEDIATE")
+        used = con.execute("SELECT COUNT(*) FROM jobs WHERE org_id = ? AND created_at >= ?", (job.org_id, start)).fetchone()[0]
+        if used >= monthly_limit:
+            raise HTTPException(429, "이번 달 조직 검증 한도를 모두 사용했습니다.")
+        con.execute(
+            """INSERT INTO jobs(id, org_id, user_id, created_at, updated_at, status, filename, data)
+               VALUES(?,?,?,?,?,?,?,?)""",
+            (job.id, job.org_id, job.user_id, job.created_at, job.updated_at, job.status, job.filename, job.model_dump_json()),
+        )
 
 
 def list_jobs(org_id: str, limit: int = 50) -> list[Job]:
